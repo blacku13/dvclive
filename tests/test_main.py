@@ -1,5 +1,6 @@
 import csv
 import json
+import logging
 import os
 
 import pytest
@@ -18,7 +19,10 @@ def read_logs(path):
     for p in os.listdir(path):
         metric_name = os.path.splitext(p)[0]
         history[metric_name] = _parse_tsv(os.path.join(path, p))
-    latest = _parse_json(path + ".json")
+    try:
+        latest = _parse_json(path + ".json")
+    except FileNotFoundError:
+        latest = {}
     return history, latest
 
 
@@ -159,3 +163,27 @@ def test_no_init(tmp_dir):
     dvclive.log("m", 0.1)
 
     assert os.path.isdir("dvclive")
+
+
+def test_override_from_env(tmp_dir, monkeypatch):
+    dvclive.init("initial_path")
+
+    monkeypatch.setenv(env.DVCLIVE_PATH, "new_path")
+
+    dvclive.log("m", 0.1)
+    dvclive.log("m", 0.2)
+
+    assert list((tmp_dir / "initial_path").iterdir()) == []
+    assert read_history("new_path", "m") == ([0, 1], [0.1, 0.2])
+
+
+def test_dont_override_from_env(tmp_dir, monkeypatch):
+    dvclive.init("initial_path")
+    dvclive.log("m", 0.1)
+
+    monkeypatch.setenv(env.DVCLIVE_PATH, "initial_path")
+
+    dvclive.log("m", 0.2)
+    dvclive.log("m", 0.3)
+
+    assert read_history("initial_path", "m") == ([0,1,2], [0.1, 0.2, 0.3])

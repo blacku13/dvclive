@@ -49,11 +49,17 @@ class MetricLogger:
                 ) from exception
 
     @staticmethod
-    def from_env():
+    def from_env(existing_logger: "MetricLogger"=None):
         from . import env
 
         if env.DVCLIVE_PATH in os.environ:
             directory = os.environ[env.DVCLIVE_PATH]
+            if existing_logger:
+                if existing_logger.dir == directory:
+                    return existing_logger
+                else:
+                    logger.info("Dvclive has been already initialized for '%s' but from now on it will write to '%s'.", existing_logger.dir, directory)
+
             dump_latest = bool(int(os.environ.get(env.DVCLIVE_SUMMARY, "0")))
             html = bool(int(os.environ.get(env.DVCLIVE_HTML, "0")))
             checkpoint = bool(int(os.environ.get(env.DVC_CHECKPOINT, "0")))
@@ -65,7 +71,7 @@ class MetricLogger:
                 checkpoint=checkpoint,
                 resume=resume,
             )
-        return None
+        return existing_logger
 
     @property
     def dir(self):

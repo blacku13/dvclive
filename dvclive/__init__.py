@@ -26,8 +26,7 @@ def init(
 
 def log(name: str, val: float, step: int = None):
     global _metric_logger  # pylint: disable=global-statement
-    if not _metric_logger:
-        _metric_logger = MetricLogger.from_env()
+    _metric_logger = MetricLogger.from_env(_metric_logger)
     if not _metric_logger:
         _metric_logger = MetricLogger()
 
