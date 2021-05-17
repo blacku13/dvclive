@@ -1,6 +1,5 @@
 import csv
 import json
-import logging
 import os
 
 import pytest
@@ -177,13 +176,33 @@ def test_override_from_env(tmp_dir, monkeypatch):
     assert read_history("new_path", "m") == ([0, 1], [0.1, 0.2])
 
 
-def test_dont_override_from_env(tmp_dir, monkeypatch):
+def test_config_ovverride_from_env(tmp_dir, monkeypatch):
     dvclive.init("initial_path")
+
+    monkeypatch.setenv(env.DVCLIVE_PATH, "initial_path")
+
+    # only config differs
+    monkeypatch.setenv(env.DVCLIVE_HTML, "0")
+    monkeypatch.setenv(env.DVCLIVE_SUMMARY, "0")
+
+    dvclive.log("m", 0.1)
+
+    from dvclive import _metric_logger as logger
+
+    assert logger.dir == "initial_path"
+    assert not logger._html
+    assert not logger._summary
+
+
+def test_dont_override_from_env(tmp_dir, monkeypatch):
+    dvclive.init("initial_path", summary=True, html=True)
     dvclive.log("m", 0.1)
 
     monkeypatch.setenv(env.DVCLIVE_PATH, "initial_path")
+    monkeypatch.setenv(env.DVCLIVE_SUMMARY, "1")
+    monkeypatch.setenv(env.DVCLIVE_HTML, "1")
 
     dvclive.log("m", 0.2)
     dvclive.log("m", 0.3)
 
-    assert read_history("initial_path", "m") == ([0,1,2], [0.1, 0.2, 0.3])
+    assert read_history("initial_path", "m") == ([0, 1, 2], [0.1, 0.2, 0.3])
