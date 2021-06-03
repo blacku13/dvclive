@@ -10,6 +10,7 @@ from dvclive import env
 
 # pylint: disable=unused-argument
 from dvclive.dvc import SIGNAL_FILE
+from dvclive.error import ConfigMismatchError
 
 
 def read_logs(path):
@@ -18,10 +19,7 @@ def read_logs(path):
     for p in os.listdir(path):
         metric_name = os.path.splitext(p)[0]
         history[metric_name] = _parse_tsv(os.path.join(path, p))
-    try:
         latest = _parse_json(path + ".json")
-    except FileNotFoundError:
-        latest = {}
     return history, latest
 
 
@@ -164,45 +162,9 @@ def test_no_init(tmp_dir):
     assert os.path.isdir("dvclive")
 
 
-def test_override_from_env(tmp_dir, monkeypatch):
-    dvclive.init("initial_path")
+def test_fail_on_conflict(tmp_dir, monkeypatch):
+    dvclive.init("some_dir")
+    monkeypatch.setenv(env.DVCLIVE_PATH, "logs")
 
-    monkeypatch.setenv(env.DVCLIVE_PATH, "new_path")
-
-    dvclive.log("m", 0.1)
-    dvclive.log("m", 0.2)
-
-    assert list((tmp_dir / "initial_path").iterdir()) == []
-    assert read_history("new_path", "m") == ([0, 1], [0.1, 0.2])
-
-
-def test_config_ovverride_from_env(tmp_dir, monkeypatch):
-    dvclive.init("initial_path")
-
-    monkeypatch.setenv(env.DVCLIVE_PATH, "initial_path")
-
-    # only config differs
-    monkeypatch.setenv(env.DVCLIVE_HTML, "0")
-    monkeypatch.setenv(env.DVCLIVE_SUMMARY, "0")
-
-    dvclive.log("m", 0.1)
-
-    from dvclive import _metric_logger as logger
-
-    assert logger.dir == "initial_path"
-    assert not logger._html
-    assert not logger._summary
-
-
-def test_dont_override_from_env(tmp_dir, monkeypatch):
-    dvclive.init("initial_path", summary=True, html=True)
-    dvclive.log("m", 0.1)
-
-    monkeypatch.setenv(env.DVCLIVE_PATH, "initial_path")
-    monkeypatch.setenv(env.DVCLIVE_SUMMARY, "1")
-    monkeypatch.setenv(env.DVCLIVE_HTML, "1")
-
-    dvclive.log("m", 0.2)
-    dvclive.log("m", 0.3)
-
-    assert read_history("initial_path", "m") == ([0, 1, 2], [0.1, 0.2, 0.3])
+    with pytest.raises(ConfigMismatchError):
+        dvclive.log("m", 0.1)

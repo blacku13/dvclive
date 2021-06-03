@@ -88,6 +88,15 @@ class MetricLogger:
             return MetricLogger(directory, **env_config)
         return existing_logger
 
+    def matches_env_setup(self):
+        from . import env
+
+        if env.DVCLIVE_PATH in os.environ:
+            env_dir = os.environ[env.DVCLIVE_PATH]
+            return self.dir == env_dir
+
+        return True
+
     @property
     def dir(self):
         return self._path
